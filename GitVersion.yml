@@ -1,0 +1,55 @@
+assembly-informational-format: '{SemVer}'
+mode: Mainline
+branches:
+  main:
+    regex: ^main$
+    increment: Patch
+    tag: ''
+    prevent-increment-of-merged-branch-version: true
+    track-merge-target: false
+    tracks-release-branches: false
+    is-release-branch: true
+  feature:
+    regex: ^features?[/-]
+    tag: useBranchName
+    increment: None
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+    tracks-release-branches: false
+    is-release-branch: false
+  pull-request:
+    regex: ^(pull|pull\-requests|pr)[/-]
+    tag: pr
+    increment: None
+    prevent-increment-of-merged-branch-version: false
+    tag-number-pattern: '[/-](?<number>\d+)[-/]'
+    track-merge-target: false
+    tracks-release-branches: false
+    is-release-branch: false
+  hotfix:
+    regex: ^hotfix(es)?[/-]
+    tag: hotfix
+    increment: None
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+    tracks-release-branches: false
+    is-release-branch: false
+  develop:
+    regex: ^dev(elop)?(ment)?$
+    tag: develop
+    increment: None
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: true
+    tracks-release-branches: true
+    is-release-branch: false
+  support:
+    regex: ^support[/-]
+    tag: useBranchName
+    increment: None
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: false
+    tracks-release-branches: false
+    is-release-branch: false
+ignore:
+  sha: []
+merge-message-formats: {}
