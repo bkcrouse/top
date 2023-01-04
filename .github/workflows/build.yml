@@ -6,14 +6,14 @@ name: Build .NET
 on: 
   
   push:
-    branches: [ $default-branch ]
+    branches: [ main, hotfix/**, develop ]
     paths-ignore:
       - 'docs/**'
       - '**/README.md'
       - '**/CONTRIBUTING.md'
 
   pull_request:
-      branches: [ $default-branch ]
+      branches: [ main, hotfix/**, develop, feature/**, support/** ]
       paths-ignore:
       - 'docs/**'
       - '**/README.md'
