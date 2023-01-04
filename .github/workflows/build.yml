@@ -13,7 +13,7 @@ on:
       - '**/CONTRIBUTING.md'
 
   pull_request:
-      branches: [ main, hotfix/**, develop, feature/**, support/** ]
+      branches: [ hotfix/**, develop, feature/**, support/** ]
       paths-ignore:
       - 'docs/**'
       - '**/README.md'
