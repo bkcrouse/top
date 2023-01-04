@@ -1,0 +1,156 @@
+name: Build
+
+on: 
+  
+  push:
+    branches: [main, hotfix/**, develop]
+    paths-ignore:
+      - 'docs/**'
+      - '**/README.md'
+      - '**/CONTRIBUTING.md'
+
+  pull_request:
+      branches: [main, hotfix/**, develop, feature/**, support/**]
+      paths-ignore:
+      - 'docs/**'
+      - '**/README.md'
+      - '**/CONTRIBUTING.md'
+
+jobs:
+
+#############################################################
+ infrastructure:
+  name: Infrastructure Tests
+  runs-on: [ trax ]
+
+  env:
+    TRAX_DEVOPS_IP: 10.175.82.190
+    TRAX_DEVOPS_HOSTNAME: devops.eng02.external.zone
+
+  steps:
+
+    - name: Ping of TRAX Azure DevOps Server should pass
+      run: ping -c 3 ${{ env.TRAX_DEVOPS_IP }}
+      continue-on-error: true
+
+    - name: Trace Route to TRAX Azure DevOps Server should pass
+      run: traceroute -n ${{ env.TRAX_DEVOPS_IP }}   
+      continue-on-error: true
+
+    - name: Nslookup of ${{ env.TRAX_DEVOPS_HOSTNAME }} should pass
+      run: |
+        nslookup ${{ env.TRAX_DEVOPS_HOSTNAME }}
+
+    - name: Authentication to TRAX Feed should pass
+      run: |
+        RESULT=$(curl -u :${{ secrets.TRAX_API_KEY }} https://devops.eng02.external.zone/TRAX/_packaging/TRAX/nuget/v3/index.json 2>/dev/null)
+
+        # if it prompts for denied for anonymous access we know that auth failed.
+        if [[ $RESULT =~ "anonymous" ]];then echo "::error::authentication or access to TRAX ADO failed." ; fi
+
+#############################################################
+
+#  This is for GitVersion, and used to generate version information for merges into the main branch
+ version:
+   needs: infrastructure
+   name: Version
+   runs-on: [ trax ]
+
+   outputs:
+
+     semVer: ${{ steps.gitversion.outputs.semVer }}
+     version: ${{ steps.setoutputs.outputs.version }}
+     commit_message: ${{ github.event.head_commit.message }}
+     should_tag: ${{ steps.setoutputs.outputs.should_tag }}
+     should_deploy: ${{ steps.setoutputs.outputs.should_deploy }}
+
+   steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Bump version and push tag on Main
+      if: github.ref == 'refs/heads/main'
+      id: tag_version
+      uses: mathieudutour/github-tag-action@v5.5
+      with:
+        github_token: ${{ github.token }}
+
+    - name: Create a GitHub release on Main
+      if: github.ref == 'refs/heads/main'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        tag_name: ${{ steps.tag_version.outputs.new_tag }}
+        release_name: Release ${{ steps.tag_version.outputs.new_tag }}
+        body: ${{ steps.tag_version.outputs.changelog }}
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.10
+      with:
+        versionSpec: '5.8.1'
+
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.9.10
+
+    - name: "Version: ${{ steps.gitversion.outputs.semVer }}"
+      id: determinedVer
+      run: echo ${{ steps.gitversion.outputs.semVer }}
+    
+    - name: Display GitVersion outputs
+      run: |
+        echo "Major: ${{ steps.gitversion.outputs.major }}"
+        echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+        echo "Patch: ${{ steps.gitversion.outputs.patch }}"
+        echo "PreReleaseTag: ${{ steps.gitversion.outputs.preReleaseTag }}"
+        echo "PreReleaseTagWithDash: ${{ steps.gitversion.outputs.preReleaseTagWithDash }}"
+        echo "PreReleaseLabel: ${{ steps.gitversion.outputs.preReleaseLabel }}"
+        echo "PreReleaseNumber: ${{ steps.gitversion.outputs.preReleaseNumber }}"
+        echo "WeightedPreReleaseNumber: ${{ steps.gitversion.outputs.weightedPreReleaseNumber }}"
+        echo "BuildMetaData: ${{ steps.gitversion.outputs.buildMetaData }}"
+        echo "BuildMetaDataPadded: ${{ steps.gitversion.outputs.buildMetaDataPadded }}"
+        echo "FullBuildMetaData: ${{ steps.gitversion.outputs.fullBuildMetaData }}"
+        echo "MajorMinorPatch: ${{ steps.gitversion.outputs.majorMinorPatch }}"
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "LegacySemVer: ${{ steps.gitversion.outputs.legacySemVer }}"
+        echo "LegacySemVerPadded: ${{ steps.gitversion.outputs.legacySemVerPadded }}"
+        echo "AssemblySemVer: ${{ steps.gitversion.outputs.assemblySemVer }}"
+        echo "AssemblySemFileVer: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
+        echo "FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+        echo "InformationalVersion: ${{ steps.gitversion.outputs.informationalVersion }}"
+        echo "BranchName: ${{ steps.gitversion.outputs.branchName }}"
+        echo "EscapedBranchName: ${{ steps.gitversion.outputs.escapedBranchName }}"
+        echo "Sha: ${{ steps.gitversion.outputs.sha }}"
+        echo "ShortSha: ${{ steps.gitversion.outputs.shortSha }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "NuGetVersion: ${{ steps.gitversion.outputs.nuGetVersion }}"
+        echo "NuGetPreReleaseTagV2: ${{ steps.gitversion.outputs.nuGetPreReleaseTagV2 }}"
+        echo "NuGetPreReleaseTag: ${{ steps.gitversion.outputs.nuGetPreReleaseTag }}"
+        echo "VersionSourceSha: ${{ steps.gitversion.outputs.versionSourceSha }}"
+        echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.commitsSinceVersionSource }}"
+        echo "CommitsSinceVersionSourcePadded: ${{ steps.gitversion.outputs.commitsSinceVersionSourcePadded }}"
+        echo "UncommittedChanges: ${{ steps.gitversion.outputs.uncommittedChanges }}"
+        echo "CommitDate: ${{ steps.gitversion.outputs.commitDate }}" 
+
+    - name: Set Outputs
+      id: setoutputs
+      run: |
+        echo ::set-output name=version::${{ steps.gitversion.outputs.FullSemVer }}.${{ steps.gitversion.outputs.shortSha }}
+        echo ::set-output name=should_tag::false
+        echo ::set-output name=should_deploy::false
+        echo ::set-output name=is_main_branch::true
+
+        ref="${{ github.ref }}"
+
+        if [ "$ref" = "refs/heads/main" ] ; then 
+          echo ::set-output name=should_tag::true
+          echo ::set-output name=should_deploy::true
+        fi
+
+        if [[ $ref = refs/heads/release* ]] ; then
+          echo ::set-output name=should_deploy::true
+        fi
+
+#############################################################
