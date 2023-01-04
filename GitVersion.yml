@@ -1,3 +1,4 @@
+next-version: 2.1.1
 assembly-informational-format: '{SemVer}'
 mode: Mainline
 branches:
